@@ -194,7 +194,7 @@
 
     container.innerHTML =
       '<span style="display:inline-block; width:10px; height:10px; background:#e91e63; border-radius:50%; flex-shrink:0;"></span>' +
-      '<span>Numerações com desconto estão sinalizadas. Selecione para ver o preço.</span>';
+      '<span>Aproveite as numerações com desconto</span>';
 
     return container;
   }
