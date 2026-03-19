@@ -249,28 +249,17 @@
 
     var promoContainer = createPromoContainer(data);
 
-    // Insere logo após o seletor de numeração (classes exatas da Constance)
+    // Insere logo após o seletor de numeração (classe exata da Constance)
     var skuSelector = document.querySelector(
       '.constance-vtex-modified-0-x-skuSelectorContainer'
     );
 
-    if (skuSelector) {
-      skuSelector.parentNode.insertBefore(
-        promoContainer,
-        skuSelector.nextSibling
-      );
-    } else {
-      // Fallback: após o nome do produto
-      var productName = document.querySelector(
-        '.vtex-store-components-3-x-productNameContainer'
-      );
-      if (productName) {
-        productName.parentNode.insertBefore(
-          promoContainer,
-          productName.nextSibling
-        );
-      }
-    }
+    if (!skuSelector) return false; // sinaliza que deve tentar de novo
+
+    skuSelector.parentNode.insertBefore(
+      promoContainer,
+      skuSelector.nextSibling
+    );
 
     // Dispara evento para o dataLayer do GTM
     window.dataLayer = window.dataLayer || [];
@@ -288,17 +277,19 @@
   function init(retries) {
     retries = retries || 0;
 
-    // Verifica se a página de produto já renderizou
-    var hasProduct =
-      document.querySelector('h1, [class*="productName"]') ||
-      (window.__RUNTIME__ && window.__RUNTIME__.route && window.__RUNTIME__.route.id === 'store.product');
+    // Espera o seletor de numeração renderizar antes de buscar dados
+    var skuSelector = document.querySelector(
+      '.constance-vtex-modified-0-x-skuSelectorContainer'
+    );
 
-    if (!hasProduct && retries < CONFIG.maxRetries) {
+    if (!skuSelector && retries < CONFIG.maxRetries) {
       setTimeout(function () {
         init(retries + 1);
       }, CONFIG.retryInterval);
       return;
     }
+
+    if (!skuSelector) return; // desiste após maxRetries
 
     fetchProductData()
       .then(function (products) {
