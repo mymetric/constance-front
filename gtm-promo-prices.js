@@ -252,22 +252,36 @@
 
     var promoContainer = createPromoContainer(data);
 
-    // Tenta inserir próximo ao preço existente na página
-    var priceContainer = document.querySelector(CONFIG.containerSelector);
+    // Tenta inserir logo após o seletor de numeração (SKU selector)
+    var skuSelector = document.querySelector(
+      '[class*="skuSelectorContainer"], [class*="skuSelector"], ' +
+      '[class*="vtex-store-components-3-x-skuSelectorContainer"], ' +
+      '[class*="skuSelectorSubcontainer--"], ' +
+      '[class*="Numeração"], [class*="numeracao"]'
+    );
 
-    if (priceContainer) {
-      priceContainer.parentNode.insertBefore(
+    if (skuSelector) {
+      skuSelector.parentNode.insertBefore(
         promoContainer,
-        priceContainer.nextSibling
+        skuSelector.nextSibling
       );
     } else {
-      // Fallback: insere após o primeiro h1 (nome do produto)
-      var productName = document.querySelector('h1, [class*="productNameContainer"]');
-      if (productName) {
-        productName.parentNode.insertBefore(
+      // Fallback: próximo ao preço
+      var priceContainer = document.querySelector(CONFIG.containerSelector);
+      if (priceContainer) {
+        priceContainer.parentNode.insertBefore(
           promoContainer,
-          productName.nextSibling
+          priceContainer.nextSibling
         );
+      } else {
+        // Último fallback: após o h1
+        var productName = document.querySelector('h1, [class*="productNameContainer"]');
+        if (productName) {
+          productName.parentNode.insertBefore(
+            promoContainer,
+            productName.nextSibling
+          );
+        }
       }
     }
 
