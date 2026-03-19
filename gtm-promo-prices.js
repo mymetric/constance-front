@@ -8,6 +8,9 @@
 (function () {
   'use strict';
 
+  // Só ativa se tiver ?preview_test na URL
+  if (window.location.search.indexOf('preview_test') === -1) return;
+
   var CONFIG = {
     // Seletores VTEX Store Framework (ajustar se necessário)
     sellingPriceSelector:
