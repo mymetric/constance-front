@@ -179,6 +179,14 @@
     }
     if (!hasAny) return null;
 
+    // Injeta CSS de mobile uma única vez
+    if (!document.getElementById('cst-promo-style')) {
+      var style = document.createElement('style');
+      style.id = 'cst-promo-style';
+      style.textContent = '@media (max-width: 768px) { #cst-promo-info { margin-left: 16px; margin-right: 16px; } }';
+      document.head.appendChild(style);
+    }
+
     var container = document.createElement('div');
     container.className = 'cst-promo-container';
     container.id = 'cst-promo-info';
