@@ -8,9 +8,6 @@
 (function () {
   'use strict';
 
-  // Só ativa se tiver preview_test na URL
-  if (window.location.href.indexOf('preview_test') === -1) return;
-
   var CONFIG = {
     // Seletores VTEX Store Framework (ajustar se necessário)
     sellingPriceSelector:
@@ -252,20 +249,9 @@
 
     var promoContainer = createPromoContainer(data);
 
-    // Busca o contexto do produto (área do produto, não o header)
-    var productContext = document.querySelector(
-      '[class*="productNameContainer"], [class*="product-name"]'
-    );
-    var productArea = productContext ? productContext.closest(
-      '[class*="flexRow"], [class*="product-"], [class*="productPage"]'
-    ) : null;
-    var searchBase = productArea || document;
-
-    // Tenta inserir logo após o seletor de numeração dentro da área do produto
-    var skuSelector = searchBase.querySelector(
-      '[class*="skuSelectorContainer"], [class*="skuSelector"], ' +
-      '[class*="skuSelectorSubcontainer--"], ' +
-      '[class*="Numeração"], [class*="numeracao"]'
+    // Insere logo após o seletor de numeração (classes exatas da Constance)
+    var skuSelector = document.querySelector(
+      '.constance-vtex-modified-0-x-skuSelectorContainer'
     );
 
     if (skuSelector) {
@@ -275,7 +261,9 @@
       );
     } else {
       // Fallback: após o nome do produto
-      var productName = searchBase.querySelector('h1, [class*="productNameContainer"]');
+      var productName = document.querySelector(
+        '.vtex-store-components-3-x-productNameContainer'
+      );
       if (productName) {
         productName.parentNode.insertBefore(
           promoContainer,
