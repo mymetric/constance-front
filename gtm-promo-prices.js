@@ -252,10 +252,18 @@
 
     var promoContainer = createPromoContainer(data);
 
-    // Tenta inserir logo após o seletor de numeração (SKU selector)
-    var skuSelector = document.querySelector(
+    // Busca o contexto do produto (área do produto, não o header)
+    var productContext = document.querySelector(
+      '[class*="productNameContainer"], [class*="product-name"]'
+    );
+    var productArea = productContext ? productContext.closest(
+      '[class*="flexRow"], [class*="product-"], [class*="productPage"]'
+    ) : null;
+    var searchBase = productArea || document;
+
+    // Tenta inserir logo após o seletor de numeração dentro da área do produto
+    var skuSelector = searchBase.querySelector(
       '[class*="skuSelectorContainer"], [class*="skuSelector"], ' +
-      '[class*="vtex-store-components-3-x-skuSelectorContainer"], ' +
       '[class*="skuSelectorSubcontainer--"], ' +
       '[class*="Numeração"], [class*="numeracao"]'
     );
@@ -266,22 +274,13 @@
         skuSelector.nextSibling
       );
     } else {
-      // Fallback: próximo ao preço
-      var priceContainer = document.querySelector(CONFIG.containerSelector);
-      if (priceContainer) {
-        priceContainer.parentNode.insertBefore(
+      // Fallback: após o nome do produto
+      var productName = searchBase.querySelector('h1, [class*="productNameContainer"]');
+      if (productName) {
+        productName.parentNode.insertBefore(
           promoContainer,
-          priceContainer.nextSibling
+          productName.nextSibling
         );
-      } else {
-        // Último fallback: após o h1
-        var productName = document.querySelector('h1, [class*="productNameContainer"]');
-        if (productName) {
-          productName.parentNode.insertBefore(
-            promoContainer,
-            productName.nextSibling
-          );
-        }
       }
     }
 
