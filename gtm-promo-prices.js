@@ -98,9 +98,9 @@
 
       if (!offer.AvailableQuantity || offer.AvailableQuantity <= 0) continue;
 
-      var listPrice = offer.ListPrice || 0;
+      var priceWithoutDiscount = offer.PriceWithoutDiscount || offer.ListPrice || 0;
       var price = offer.Price || 0;
-      var discount = calcDiscount(listPrice, price);
+      var discount = calcDiscount(priceWithoutDiscount, price);
 
       // Pega o nome da variação (numeração)
       var sizeName = item.name || '';
@@ -124,7 +124,7 @@
       }
 
       discounts[sizeKey] = {
-        listPrice: listPrice,
+        priceWithoutDiscount: priceWithoutDiscount,
         price: price,
         discount: discount,
         installments: installments,
