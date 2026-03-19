@@ -194,7 +194,7 @@
 
     container.innerHTML =
       '<span style="display:inline-block; width:10px; height:10px; background:#e91e63; border-radius:50%; flex-shrink:0;"></span>' +
-      '<span>Aproveite as numerações com desconto</span>';
+      '<span>Aproveite as numerações com desconto — condição exclusiva do site</span>';
 
     return container;
   }
