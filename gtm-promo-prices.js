@@ -1,34 +1,15 @@
 /**
- * GTM Script - Exibe números promocionais na página de produto
+ * GTM Script - Exibe desconto por numeração na página de produto
  * Constance Calçados (VTEX Store Framework)
  *
- * Injetar via GTM com trigger: Page View em páginas de produto
- * (URL contém "/p")
+ * Injetar via GTM com trigger configurado no GTM
  */
 (function () {
   'use strict';
 
   var CONFIG = {
-    // Seletores VTEX Store Framework (ajustar se necessário)
-    sellingPriceSelector:
-      '[class*="sellingPrice"], [class*="product-price"] [class*="currencyContainer"], .vtex-product-price-1-x-sellingPrice',
-    listPriceSelector:
-      '[class*="listPrice"], .vtex-product-price-1-x-listPrice',
-    containerSelector:
-      '[class*="productPriceContainer"], [class*="product-price"], .vtex-product-price-1-x-productPriceContainer, .vtex-flex-layout-0-x-flexRow',
-    // Estilo do badge de desconto
-    badgeStyles: {
-      backgroundColor: '#e91e63',
-      color: '#ffffff',
-      padding: '4px 10px',
-      borderRadius: '4px',
-      fontSize: '14px',
-      fontWeight: '700',
-      display: 'inline-block',
-      marginLeft: '8px',
-      lineHeight: '1.4',
-    },
-    // Estilo do container de promoção
+    skuSelectorContainer: '.constance-vtex-modified-0-x-skuSelectorContainer',
+    skuItem: '.constance-vtex-modified-0-x-skuSelectorItem',
     promoContainerStyles: {
       backgroundColor: '#fff3f3',
       border: '1px solid #e91e63',
@@ -40,11 +21,21 @@
       color: '#333',
       lineHeight: '1.6',
     },
+    dotStyles: {
+      position: 'absolute',
+      top: '-4px',
+      right: '-4px',
+      width: '10px',
+      height: '10px',
+      backgroundColor: '#e91e63',
+      borderRadius: '50%',
+      zIndex: '10',
+      pointerEvents: 'none',
+    },
     maxRetries: 30,
     retryInterval: 500,
   };
 
-  // Busca dados do produto pela API VTEX
   function fetchProductData() {
     var skuId = getSkuId();
     var productSlug = getProductSlug();
@@ -52,17 +43,13 @@
     if (skuId) {
       return fetch(
         '/api/catalog_system/pub/products/search?fq=skuId:' + skuId
-      ).then(function (r) {
-        return r.json();
-      });
+      ).then(function (r) { return r.json(); });
     }
 
     if (productSlug) {
       return fetch(
         '/api/catalog_system/pub/products/search/' + productSlug + '/p'
-      ).then(function (r) {
-        return r.json();
-      });
+      ).then(function (r) { return r.json(); });
     }
 
     return Promise.reject('Produto não encontrado');
@@ -72,8 +59,6 @@
     var params = new URLSearchParams(window.location.search);
     var skuId = params.get('skuId');
     if (skuId) return skuId;
-
-    // Tenta pegar do runtime VTEX
     try {
       if (window.__RUNTIME__ && window.__RUNTIME__.query) {
         return window.__RUNTIME__.query.skuId || null;
@@ -102,159 +87,151 @@
     return Math.round(((listPrice - sellingPrice) / listPrice) * 100);
   }
 
-  function createBadge(text) {
-    var badge = document.createElement('span');
-    badge.className = 'cst-promo-badge';
-    badge.textContent = text;
-    Object.assign(badge.style, CONFIG.badgeStyles);
-    return badge;
+  // Extrai mapa de descontos por numeração: { "33": { listPrice, price, discount }, ... }
+  function getDiscountsBySize(product) {
+    var items = product.items || [];
+    var discounts = {};
+
+    for (var i = 0; i < items.length; i++) {
+      var item = items[i];
+      var offer = (item.sellers && item.sellers[0] && item.sellers[0].commertialOffer) || {};
+
+      if (!offer.AvailableQuantity || offer.AvailableQuantity <= 0) continue;
+
+      var listPrice = offer.ListPrice || 0;
+      var price = offer.Price || 0;
+      var discount = calcDiscount(listPrice, price);
+
+      // Pega o nome da variação (numeração)
+      var sizeName = item.name || '';
+      // Tenta extrair só o número do nome da variação
+      var sizeMatch = sizeName.match(/\d+/);
+      var sizeKey = sizeMatch ? sizeMatch[0] : sizeName;
+
+      // Melhor parcelamento sem juros
+      var installments = null;
+      var installmentsList = offer.Installments || [];
+      for (var k = 0; k < installmentsList.length; k++) {
+        var inst = installmentsList[k];
+        if (inst.InterestRate === 0 && inst.NumberOfInstallments > 1) {
+          if (!installments || inst.NumberOfInstallments > installments.count) {
+            installments = {
+              count: inst.NumberOfInstallments,
+              value: inst.Value,
+            };
+          }
+        }
+      }
+
+      discounts[sizeKey] = {
+        listPrice: listPrice,
+        price: price,
+        discount: discount,
+        installments: installments,
+      };
+    }
+
+    return discounts;
   }
 
-  function createPromoContainer(data) {
+  // Adiciona bolinha rosa em cima das numerações com desconto
+  function addDotsToSizes(discountsBySize) {
+    var skuItems = document.querySelectorAll(CONFIG.skuItem);
+
+    for (var i = 0; i < skuItems.length; i++) {
+      var el = skuItems[i];
+      var className = el.className || '';
+
+      // Remove dots antigos
+      var oldDots = el.querySelectorAll('.cst-promo-dot');
+      for (var d = 0; d < oldDots.length; d++) oldDots[d].remove();
+
+      // Extrai o número da numeração da classe (ex: skuSelectorItem--34)
+      var match = className.match(/skuSelectorItem--(\d+)/);
+      if (!match) continue;
+
+      var size = match[1];
+      var data = discountsBySize[size];
+
+      if (data && data.discount > 0) {
+        // Garante position relative no item
+        el.style.position = 'relative';
+
+        var dot = document.createElement('span');
+        dot.className = 'cst-promo-dot';
+        dot.title = '-' + data.discount + '% nesta numeração';
+        Object.assign(dot.style, CONFIG.dotStyles);
+        el.appendChild(dot);
+      }
+    }
+  }
+
+  function createPromoContainer(discountsBySize) {
     var container = document.createElement('div');
     container.className = 'cst-promo-container';
     container.id = 'cst-promo-info';
     Object.assign(container.style, CONFIG.promoContainerStyles);
 
-    var discount = calcDiscount(data.listPrice, data.sellingPrice);
-    var savings = data.listPrice - data.sellingPrice;
-
-    var html = '';
-
-    // Linha do preço original (De:)
-    if (discount > 0) {
-      html +=
-        '<div style="color:#999; font-size:13px;">' +
-        'De: <span style="text-decoration:line-through;">' +
-        formatCurrency(data.listPrice) +
-        '</span>' +
-        '</div>';
+    // Conta quantas numerações têm desconto
+    var sizesWithDiscount = [];
+    var keys = Object.keys(discountsBySize);
+    for (var i = 0; i < keys.length; i++) {
+      if (discountsBySize[keys[i]].discount > 0) {
+        sizesWithDiscount.push(keys[i]);
+      }
     }
 
-    // Linha do preço promocional (Por:)
-    html +=
-      '<div style="font-size:22px; font-weight:700; color:#e91e63; margin:4px 0;">' +
-      'Por: ' +
-      formatCurrency(data.sellingPrice);
+    if (sizesWithDiscount.length === 0) return null;
 
-    if (discount > 0) {
+    var allHaveDiscount = sizesWithDiscount.length === keys.length;
+
+    var html = '<div style="font-size:15px; font-weight:700; color:#e91e63; margin-bottom:6px;">';
+
+    if (allHaveDiscount) {
+      html += 'Desconto em todas as numerações!';
+    } else {
+      html += 'Desconto em algumas numerações!';
+    }
+
+    html += '</div>';
+    html +=
+      '<div style="font-size:13px; color:#555;">' +
+      'Numerações com desconto estão sinalizadas com ' +
+      '<span style="display:inline-block; width:10px; height:10px; background:#e91e63; border-radius:50%; vertical-align:middle;"></span>' +
+      '. Selecione para ver o preço.' +
+      '</div>';
+
+    // Lista resumida dos descontos
+    html += '<div style="margin-top:8px; font-size:12px; color:#666;">';
+    for (var j = 0; j < sizesWithDiscount.length; j++) {
+      var size = sizesWithDiscount[j];
+      var d = discountsBySize[size];
       html +=
-        ' <span style="' +
-        'background:#e91e63; color:#fff; padding:2px 8px; border-radius:4px; font-size:13px; font-weight:700; vertical-align:middle;' +
-        '">' +
-        '-' +
-        discount +
-        '%</span>';
+        '<span style="display:inline-block; background:#fce4ec; padding:2px 8px; border-radius:12px; margin:2px 4px 2px 0; font-weight:600;">' +
+        'N° ' + size + ': ' + formatCurrency(d.price) +
+        ' <span style="color:#e91e63;">(-' + d.discount + '%)</span>' +
+        '</span>';
     }
     html += '</div>';
-
-    // Economia
-    if (discount > 0) {
-      html +=
-        '<div style="color:#2e7d32; font-size:13px; font-weight:600; margin-top:2px;">' +
-        'Economia de ' +
-        formatCurrency(savings) +
-        '</div>';
-    }
-
-    // Parcelamento
-    if (data.installments && data.installments.count > 1) {
-      html +=
-        '<div style="font-size:13px; color:#555; margin-top:6px;">' +
-        'ou ' +
-        data.installments.count +
-        'x de ' +
-        formatCurrency(data.installments.value) +
-        ' sem juros' +
-        '</div>';
-    }
-
-    // Preço no Pix (5% extra de desconto como exemplo — ajustar conforme regra real)
-    if (data.sellingPrice > 0) {
-      var pixPrice = data.sellingPrice * 0.95;
-      html +=
-        '<div style="font-size:13px; color:#00796b; margin-top:6px; font-weight:600;">' +
-        'No Pix: ' +
-        formatCurrency(pixPrice) +
-        ' (5% off)' +
-        '</div>';
-    }
 
     container.innerHTML = html;
     return container;
   }
 
-  function getSelectedSkuOffer(product) {
-    var skuId = getSkuId();
-    var items = product.items || [];
-
-    // Busca o SKU selecionado
-    for (var i = 0; i < items.length; i++) {
-      var item = items[i];
-      if (skuId && item.itemId === skuId) {
-        var offer = (item.sellers && item.sellers[0] && item.sellers[0].commertialOffer) || {};
-        return extractOfferData(offer);
-      }
-    }
-
-    // Fallback: primeiro SKU disponível
-    for (var j = 0; j < items.length; j++) {
-      var fallbackItem = items[j];
-      var fallbackOffer = (fallbackItem.sellers && fallbackItem.sellers[0] && fallbackItem.sellers[0].commertialOffer) || {};
-      if (fallbackOffer.AvailableQuantity > 0) {
-        return extractOfferData(fallbackOffer);
-      }
-    }
-
-    return null;
-  }
-
-  function extractOfferData(offer) {
-    var listPrice = offer.ListPrice || 0;
-    var sellingPrice = offer.Price || 0;
-
-    // Melhor parcelamento sem juros
-    var installments = null;
-    var installmentsList = offer.Installments || [];
-
-    for (var k = 0; k < installmentsList.length; k++) {
-      var inst = installmentsList[k];
-      if (inst.InterestRate === 0 && inst.NumberOfInstallments > 1) {
-        if (!installments || inst.NumberOfInstallments > installments.count) {
-          installments = {
-            count: inst.NumberOfInstallments,
-            value: inst.Value,
-            total: inst.TotalValuePlusInterestRate,
-          };
-        }
-      }
-    }
-
-    return {
-      listPrice: listPrice,
-      sellingPrice: sellingPrice,
-      installments: installments,
-    };
-  }
-
-  function injectPromoInfo(data) {
-    // Remove injeção anterior (evita duplicação)
+  function injectPromo(discountsBySize) {
+    // Remove injeção anterior
     var existing = document.getElementById('cst-promo-info');
     if (existing) existing.remove();
 
-    var discount = calcDiscount(data.listPrice, data.sellingPrice);
+    // Adiciona bolinhas nas numerações
+    addDotsToSizes(discountsBySize);
 
-    // Só exibe se tiver desconto
-    if (discount <= 0) return;
+    // Cria container de aviso
+    var promoContainer = createPromoContainer(discountsBySize);
+    if (!promoContainer) return;
 
-    var promoContainer = createPromoContainer(data);
-
-    // Insere logo após o seletor de numeração (classe exata da Constance)
-    var skuSelector = document.querySelector(
-      '.constance-vtex-modified-0-x-skuSelectorContainer'
-    );
-
-    if (!skuSelector) return false; // sinaliza que deve tentar de novo
+    var skuSelector = document.querySelector(CONFIG.skuSelectorContainer);
+    if (!skuSelector) return false;
 
     skuSelector.parentNode.insertBefore(
       promoContainer,
@@ -262,14 +239,16 @@
     );
 
     // Dispara evento para o dataLayer do GTM
+    var sizesWithDiscount = Object.keys(discountsBySize).filter(function (k) {
+      return discountsBySize[k].discount > 0;
+    });
+
     window.dataLayer = window.dataLayer || [];
     window.dataLayer.push({
       event: 'promoPrice_displayed',
       promoData: {
-        listPrice: data.listPrice,
-        sellingPrice: data.sellingPrice,
-        discount: discount,
-        savings: data.listPrice - data.sellingPrice,
+        sizesWithDiscount: sizesWithDiscount.length,
+        totalSizes: Object.keys(discountsBySize).length,
       },
     });
   }
@@ -277,10 +256,7 @@
   function init(retries) {
     retries = retries || 0;
 
-    // Espera o seletor de numeração renderizar antes de buscar dados
-    var skuSelector = document.querySelector(
-      '.constance-vtex-modified-0-x-skuSelectorContainer'
-    );
+    var skuSelector = document.querySelector(CONFIG.skuSelectorContainer);
 
     if (!skuSelector && retries < CONFIG.maxRetries) {
       setTimeout(function () {
@@ -289,41 +265,34 @@
       return;
     }
 
-    if (!skuSelector) return; // desiste após maxRetries
+    if (!skuSelector) return;
 
     fetchProductData()
       .then(function (products) {
         if (!products || !products.length) return;
 
         var product = products[0];
-        var offerData = getSelectedSkuOffer(product);
+        var discountsBySize = getDiscountsBySize(product);
 
-        if (offerData) {
-          injectPromoInfo(offerData);
-        }
+        injectPromo(discountsBySize);
       })
       .catch(function (err) {
         console.warn('[CST Promo] Erro ao buscar dados:', err);
       });
   }
 
-  // Aguarda o DOM estar pronto
   if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      init();
-    });
+    document.addEventListener('DOMContentLoaded', function () { init(); });
   } else {
     init();
   }
 
-  // Observa mudanças de SKU (troca de tamanho/cor) via navegação SPA
+  // Observa navegação SPA
   var lastUrl = window.location.href;
   var observer = new MutationObserver(function () {
     if (window.location.href !== lastUrl) {
       lastUrl = window.location.href;
-      setTimeout(function () {
-        init();
-      }, 1000);
+      setTimeout(function () { init(); }, 1000);
     }
   });
 
