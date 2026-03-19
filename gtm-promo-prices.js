@@ -11,15 +11,14 @@
     skuSelectorContainer: '.constance-vtex-modified-0-x-skuSelectorContainer',
     skuItem: '.constance-vtex-modified-0-x-skuSelectorItem',
     promoContainerStyles: {
-      backgroundColor: '#fff3f3',
-      border: '1px solid #e91e63',
-      borderRadius: '8px',
-      padding: '12px 16px',
-      marginTop: '10px',
-      marginBottom: '10px',
-      fontSize: '14px',
-      color: '#333',
-      lineHeight: '1.6',
+      display: 'flex',
+      alignItems: 'center',
+      gap: '8px',
+      marginTop: '12px',
+      marginBottom: '4px',
+      fontSize: '13px',
+      color: '#666',
+      lineHeight: '1',
     },
     dotStyles: {
       position: 'absolute',
@@ -167,54 +166,23 @@
   }
 
   function createPromoContainer(discountsBySize) {
+    // Verifica se há pelo menos uma numeração com desconto
+    var keys = Object.keys(discountsBySize);
+    var hasAny = false;
+    for (var i = 0; i < keys.length; i++) {
+      if (discountsBySize[keys[i]].discount > 0) { hasAny = true; break; }
+    }
+    if (!hasAny) return null;
+
     var container = document.createElement('div');
     container.className = 'cst-promo-container';
     container.id = 'cst-promo-info';
     Object.assign(container.style, CONFIG.promoContainerStyles);
 
-    // Conta quantas numerações têm desconto
-    var sizesWithDiscount = [];
-    var keys = Object.keys(discountsBySize);
-    for (var i = 0; i < keys.length; i++) {
-      if (discountsBySize[keys[i]].discount > 0) {
-        sizesWithDiscount.push(keys[i]);
-      }
-    }
+    container.innerHTML =
+      '<span style="display:inline-block; width:10px; height:10px; background:#e91e63; border-radius:50%; flex-shrink:0;"></span>' +
+      '<span>Numerações com desconto estão sinalizadas. Selecione para ver o preço.</span>';
 
-    if (sizesWithDiscount.length === 0) return null;
-
-    var allHaveDiscount = sizesWithDiscount.length === keys.length;
-
-    var html = '<div style="font-size:15px; font-weight:700; color:#e91e63; margin-bottom:6px;">';
-
-    if (allHaveDiscount) {
-      html += 'Desconto em todas as numerações!';
-    } else {
-      html += 'Desconto em algumas numerações!';
-    }
-
-    html += '</div>';
-    html +=
-      '<div style="font-size:13px; color:#555;">' +
-      'Numerações com desconto estão sinalizadas com ' +
-      '<span style="display:inline-block; width:10px; height:10px; background:#e91e63; border-radius:50%; vertical-align:middle;"></span>' +
-      '. Selecione para ver o preço.' +
-      '</div>';
-
-    // Lista resumida dos descontos
-    html += '<div style="margin-top:8px; font-size:12px; color:#666;">';
-    for (var j = 0; j < sizesWithDiscount.length; j++) {
-      var size = sizesWithDiscount[j];
-      var d = discountsBySize[size];
-      html +=
-        '<span style="display:inline-block; background:#fce4ec; padding:2px 8px; border-radius:12px; margin:2px 4px 2px 0; font-weight:600;">' +
-        'N° ' + size + ': ' + formatCurrency(d.price) +
-        ' <span style="color:#e91e63;">(-' + d.discount + '%)</span>' +
-        '</span>';
-    }
-    html += '</div>';
-
-    container.innerHTML = html;
     return container;
   }
 
