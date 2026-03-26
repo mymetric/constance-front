@@ -7,6 +7,37 @@
 (function () {
   'use strict';
 
+  // Mapa de preços promocionais por productId → { numeração: preço }
+  var PROMO_PRICES = {
+    '13376000': { '34': 99.00, '38': 99.00, '39': 99.00 },
+    '12883000': { '34': 79.99, '39': 79.99 },
+    '13382000': { '34': 49.99, '39': 49.99 },
+    '13170000': { '34': 149.99, '39': 149.99, '40': 149.99 },
+    '13480000': { '34': 79.99, '39': 79.99 },
+    '12494000': { '34': 149.99 },
+    '13547000': { '34': 99.99, '39': 99.99, '40': 99.99 },
+    '12860000': { '34': 99.99, '38': 99.99, '39': 99.99 },
+    '13408000': { '34': 99.99, '38': 99.99, '39': 99.99 },
+    '13634000': { '34': 99.99, '40': 99.99 },
+    '13514000': { '34': 69.99, '38': 69.99, '39': 69.99, '40': 69.99 },
+    '13687000': { '34': 79.99, '39': 79.99, '40': 79.99 },
+    '13543000': { '34': 79.99, '39': 79.99, '40': 79.99, '41': 79.99, '42': 79.99 },
+    '13551000': { '34': 79.99, '39': 79.99, '40': 79.99 },
+    '13082000': { '34': 49.99, '39': 49.99 },
+    '13600000': { '34': 89.99, '39': 89.99, '40': 89.99 },
+    '13346000': { '34': 89.99, '39': 89.99 },
+    '13696000': { '39': 99.99, '40': 99.99 },
+    '12483000': { '34': 169.99 },
+    '13157000': { '35': 149.99, '40': 149.99 },
+    '13426000': { '38': 119.99, '39': 119.99 },
+    '13549000': { '34': 189.99, '39': 189.99, '40': 189.99 },
+    '13692000': { '34': 119.99, '39': 119.99 },
+    '12865000': { '34': 79.99, '39': 79.99 },
+    '13298000': { '34': 59.99, '39': 59.99 },
+    '13341000': { '38': 99.99, '39': 99.99 },
+    '12991000': { '34': 89.99, '39': 89.99 },
+  };
+
   var CONFIG = {
     skuSelectorContainer: '.constance-vtex-modified-0-x-skuSelectorContainer',
     skuItem: '.constance-vtex-modified-0-x-skuSelectorItem',
@@ -95,6 +126,8 @@
   function getDiscountsBySize(product) {
     var items = product.items || [];
     var discounts = {};
+    var productId = String(product.productId || '');
+    var promoOverrides = PROMO_PRICES[productId] || null;
 
     for (var i = 0; i < items.length; i++) {
       var item = items[i];
@@ -104,13 +137,19 @@
 
       var priceWithoutDiscount = offer.PriceWithoutDiscount || offer.ListPrice || 0;
       var price = offer.Price || 0;
-      var discount = calcDiscount(priceWithoutDiscount, price);
 
       // Pega o nome da variação (numeração)
       var sizeName = item.name || '';
       // Tenta extrair só o número do nome da variação
       var sizeMatch = sizeName.match(/\d+/);
       var sizeKey = sizeMatch ? sizeMatch[0] : sizeName;
+
+      // Aplica override de preço promocional se existir
+      if (promoOverrides && promoOverrides[sizeKey] !== undefined) {
+        price = promoOverrides[sizeKey];
+      }
+
+      var discount = calcDiscount(priceWithoutDiscount, price);
 
       // Melhor parcelamento sem juros
       var installments = null;
