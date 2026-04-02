@@ -178,16 +178,28 @@
   }
 
   // Adiciona bolinha rosa em cima das numerações com desconto
+  // Se todas as numerações tiverem desconto, não exibe bolinhas (só a barra)
   function addDotsToSizes(discountsBySize) {
     var skuItems = document.querySelectorAll(CONFIG.skuItem);
+
+    // Remove dots antigos sempre
+    for (var i = 0; i < skuItems.length; i++) {
+      var oldDots = skuItems[i].querySelectorAll('.cst-promo-dot');
+      for (var d = 0; d < oldDots.length; d++) oldDots[d].remove();
+    }
+
+    // Verifica se todas as numerações disponíveis têm desconto
+    var sizes = Object.keys(discountsBySize);
+    var allHaveDiscount = sizes.length > 0 && sizes.every(function (k) {
+      return discountsBySize[k].discount > 0;
+    });
+
+    // Se todas têm desconto, não exibe bolinhas — só a barra é suficiente
+    if (allHaveDiscount) return;
 
     for (var i = 0; i < skuItems.length; i++) {
       var el = skuItems[i];
       var className = el.className || '';
-
-      // Remove dots antigos
-      var oldDots = el.querySelectorAll('.cst-promo-dot');
-      for (var d = 0; d < oldDots.length; d++) oldDots[d].remove();
 
       // Extrai o número da numeração da classe (ex: skuSelectorItem--34)
       var match = className.match(/skuSelectorItem--(\d+)/);
