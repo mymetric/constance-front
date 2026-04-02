@@ -223,11 +223,11 @@
   }
 
   function createPromoContainer(discountsBySize) {
-    // Verifica se há pelo menos uma numeração com desconto
+    // Verifica se há pelo menos uma numeração com promo override
     var keys = Object.keys(discountsBySize);
     var hasAny = false;
     for (var i = 0; i < keys.length; i++) {
-      if (discountsBySize[keys[i]].discount > 0) { hasAny = true; break; }
+      if (discountsBySize[keys[i]].hasPromoOverride) { hasAny = true; break; }
     }
     if (!hasAny) return null;
 
