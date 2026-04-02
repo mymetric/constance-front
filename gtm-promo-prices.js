@@ -223,13 +223,18 @@
   }
 
   function createPromoContainer(discountsBySize) {
-    // Verifica se há pelo menos uma numeração com promo override
     var keys = Object.keys(discountsBySize);
-    var hasAny = false;
+    var hasPromo = false;
+    var allHaveDiscount = keys.length > 0;
     for (var i = 0; i < keys.length; i++) {
-      if (discountsBySize[keys[i]].hasPromoOverride) { hasAny = true; break; }
+      if (discountsBySize[keys[i]].hasPromoOverride) hasPromo = true;
+      if (discountsBySize[keys[i]].discount <= 0) allHaveDiscount = false;
     }
-    if (!hasAny) return null;
+    if (!hasPromo && !allHaveDiscount) return null;
+
+    var message = hasPromo
+      ? 'Aproveite as numerações com desconto — condição exclusiva do site'
+      : 'Todas as numerações com desconto — condição exclusiva do site';
 
     // Injeta CSS de mobile uma única vez
     if (!document.getElementById('cst-promo-style')) {
@@ -246,7 +251,7 @@
 
     container.innerHTML =
       '<span style="display:inline-block; width:10px; height:10px; background:#e91e63; border-radius:50%; flex-shrink:0;"></span>' +
-      '<span>Aproveite as numerações com desconto — condição exclusiva do site</span>';
+      '<span>' + message + '</span>';
 
     return container;
   }
