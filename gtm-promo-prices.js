@@ -171,6 +171,7 @@
         price: price,
         discount: discount,
         installments: installments,
+        hasPromoOverride: !!(promoOverrides && promoOverrides[sizeKey] !== undefined),
       };
     }
 
@@ -208,7 +209,7 @@
       var size = match[1];
       var data = discountsBySize[size];
 
-      if (data && data.discount > 0) {
+      if (data && data.hasPromoOverride && data.discount > 0) {
         // Garante position relative no item
         el.style.position = 'relative';
 
