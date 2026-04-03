@@ -38,6 +38,21 @@
     '12991000': { '34': 89.99, '39': 89.99 },
   };
 
+  // Produtos com desconto por tempo limitado (exibe barra com msg diferente, sem bolinhas)
+  var PROMO_BANNER_ONLY = [
+    '5668000','7345000','10654000','11221000','11318000','11704000','11924000',
+    '11967000','12358000','12381000','12544000','12588000','12604000','12671000',
+    '12691000','12755000','12808000','12811000','12818000','12891000','12902000',
+    '12921000','12957000','13039000','13044000','13047000','13050000','13053000',
+    '13056000','13082000','13105000','13121000','13127000','13131000','13132000',
+    '13138000','13155000','13163000','13167000','13168000','13190000','13191000',
+    '13236000','13291000','13302000','13325000','13327000','13344000','13348000',
+    '13362000','13370000','13396000','13409000','13416000','13451000','13455000',
+    '13496000','13532000','13552000','13554000','13556000','13568000','13570000',
+    '13603000','13604000','13669000','13671000','13677000','13705000','13706000',
+    '13721000','13774000',
+  ];
+
   var CONFIG = {
     skuSelectorContainer: '.constance-vtex-modified-0-x-skuSelectorContainer',
     skuItem: '.constance-vtex-modified-0-x-skuSelectorItem',
@@ -171,7 +186,6 @@
         price: price,
         discount: discount,
         installments: installments,
-        hasPromoOverride: !!(promoOverrides && promoOverrides[sizeKey] !== undefined),
       };
     }
 
@@ -179,28 +193,16 @@
   }
 
   // Adiciona bolinha rosa em cima das numerações com desconto
-  // Se todas as numerações tiverem desconto, não exibe bolinhas (só a barra)
   function addDotsToSizes(discountsBySize) {
     var skuItems = document.querySelectorAll(CONFIG.skuItem);
-
-    // Remove dots antigos sempre
-    for (var i = 0; i < skuItems.length; i++) {
-      var oldDots = skuItems[i].querySelectorAll('.cst-promo-dot');
-      for (var d = 0; d < oldDots.length; d++) oldDots[d].remove();
-    }
-
-    // Verifica se todas as numerações disponíveis têm desconto
-    var sizes = Object.keys(discountsBySize);
-    var allHaveDiscount = sizes.length > 0 && sizes.every(function (k) {
-      return discountsBySize[k].discount > 0;
-    });
-
-    // Se todas têm desconto, não exibe bolinhas — só a barra é suficiente
-    if (allHaveDiscount) return;
 
     for (var i = 0; i < skuItems.length; i++) {
       var el = skuItems[i];
       var className = el.className || '';
+
+      // Remove dots antigos
+      var oldDots = el.querySelectorAll('.cst-promo-dot');
+      for (var d = 0; d < oldDots.length; d++) oldDots[d].remove();
 
       // Extrai o número da numeração da classe (ex: skuSelectorItem--34)
       var match = className.match(/skuSelectorItem--(\d+)/);
@@ -209,7 +211,7 @@
       var size = match[1];
       var data = discountsBySize[size];
 
-      if (data && data.hasPromoOverride && data.discount > 0) {
+      if (data && data.discount > 0) {
         // Garante position relative no item
         el.style.position = 'relative';
 
@@ -222,19 +224,22 @@
     }
   }
 
-  function createPromoContainer(discountsBySize) {
+  function createPromoContainer(discountsBySize, productId) {
     var keys = Object.keys(discountsBySize);
-    var hasPromo = false;
-    var allHaveDiscount = keys.length > 0;
+    var hasDiscount = false;
     for (var i = 0; i < keys.length; i++) {
-      if (discountsBySize[keys[i]].hasPromoOverride) hasPromo = true;
-      if (discountsBySize[keys[i]].discount <= 0) allHaveDiscount = false;
+      if (discountsBySize[keys[i]].discount > 0) { hasDiscount = true; break; }
     }
-    if (!hasPromo && !allHaveDiscount) return null;
 
-    var message = hasPromo
-      ? 'Aproveite as numerações com desconto — condição exclusiva do site'
-      : 'Todas as numerações com desconto — condição exclusiva do site';
+    var hasPromoOverride = !!PROMO_PRICES[productId];
+    var isBannerOnly = PROMO_BANNER_ONLY.indexOf(productId) !== -1;
+
+    // Só exibe barra se tem promo override ou está na lista banner-only
+    if (!hasDiscount || (!hasPromoOverride && !isBannerOnly)) return null;
+
+    var message = isBannerOnly
+      ? 'Aproveite o desconto por tempo limitado'
+      : 'Aproveite as numerações com desconto — condição exclusiva do site';
 
     // Injeta CSS de mobile uma única vez
     if (!document.getElementById('cst-promo-style')) {
@@ -256,16 +261,18 @@
     return container;
   }
 
-  function injectPromo(discountsBySize) {
+  function injectPromo(discountsBySize, productId) {
     // Remove injeção anterior
     var existing = document.getElementById('cst-promo-info');
     if (existing) existing.remove();
 
-    // Adiciona bolinhas nas numerações
-    addDotsToSizes(discountsBySize);
+    // Adiciona bolinhas nas numerações (apenas para produtos com PROMO_PRICES)
+    if (PROMO_PRICES[productId]) {
+      addDotsToSizes(discountsBySize);
+    }
 
     // Cria container de aviso
-    var promoContainer = createPromoContainer(discountsBySize);
+    var promoContainer = createPromoContainer(discountsBySize, productId);
     if (!promoContainer) return;
 
     var skuSelector = document.querySelector(CONFIG.skuSelectorContainer);
@@ -310,9 +317,10 @@
         if (!products || !products.length) return;
 
         var product = products[0];
+        var productId = String(product.productId || '');
         var discountsBySize = getDiscountsBySize(product);
 
-        injectPromo(discountsBySize);
+        injectPromo(discountsBySize, productId);
       })
       .catch(function (err) {
         console.warn('[CST Promo] Erro ao buscar dados:', err);
